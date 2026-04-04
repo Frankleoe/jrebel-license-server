@@ -8,18 +8,22 @@ import os
 import logging
 from datetime import datetime, timezone
 from fastapi import FastAPI, Request, Response
-from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, JSONResponse
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger(__name__)
 
-app = FastAPI(title="JRebel License Server", version="2.0.0")
+app = FastAPI(title="AFrank JRebel License Server", version="2.0.0")
 
 # JRebel 支持的版本
 SUPPORTED_FROM = "2018.1"
 
 
 def _get_base_url(request: Request) -> str:
+    # 支持通过环境变量覆盖前缀（用于反向代理场景）
+    prefix = os.getenv("SERVER_PREFIX", "").rstrip("/")
+    if prefix:
+        return prefix
     return str(request.base_url).rstrip("/")
 
 
@@ -57,7 +61,6 @@ async def index(request: Request):
         .header {{ text-align: center; margin-bottom: 40px; }}
         .logo {{ font-size: 48px; margin-bottom: 12px; filter: drop-shadow(0 0 20px var(--glow)); }}
         .title {{ font-size: 28px; font-weight: 600; color: white; margin-bottom: 8px; letter-spacing: 2px; }}
-        .subtitle {{ color: #888; font-size: 14px; }}
         .badge {{
             display: inline-block; background: rgba(74,107,255,0.2);
             color: var(--primary); border: 1px solid var(--primary);
@@ -88,20 +91,23 @@ async def index(request: Request):
             background: rgba(74,107,255,0.1); border: 1px dashed var(--primary);
             border-radius: 10px; padding: 16px 20px;
             display: flex; align-items: center; gap: 12px;
+            flex-wrap: wrap;
         }}
         .url-text {{
             flex: 1; font-family: monospace; font-size: 15px;
-            color: white; word-break: break-all; line-height: 1.6;
+            color: white; word-break: break-all; line-height: 1.6; min-width: 200px;
         }}
         .token {{ color: #ff5252; font-weight: 600; }}
-        .copy-btn {{
+        .btn-row {{ display: flex; gap: 8px; flex-shrink: 0; }}
+        .btn {{
             background: var(--primary); color: white; border: none;
-            border-radius: 8px; padding: 8px 16px; cursor: pointer;
+            border-radius: 8px; padding: 8px 14px; cursor: pointer;
             font-size: 13px; transition: all 0.2s; white-space: nowrap;
         }}
-        .copy-btn:hover {{ background: #3651d4; transform: translateY(-1px); }}
-        .copy-btn:active {{ transform: translateY(0); }}
-        .copy-btn.copied {{ background: #2ecc71; }}
+        .btn:hover {{ background: #3651d4; transform: translateY(-1px); }}
+        .btn:active {{ transform: translateY(0); }}
+        .btn.copied {{ background: #2ecc71; }}
+        .btn.regen {{ background: rgba(74,107,255,0.2); border: 1px solid var(--primary); font-size: 12px; }}
         .steps {{ display: flex; flex-direction: column; gap: 14px; }}
         .step {{ display: flex; align-items: flex-start; gap: 14px; }}
         .step-num {{
@@ -123,15 +129,17 @@ async def index(request: Request):
     <div class="header">
         <div class="logo">⚡</div>
         <div class="title">AFrank JRebel License Server</div>
-        <div class="subtitle">{base}</div>
-        <div class="badge"><span class="status-dot"></span>运行中 · v2.0.0</div>
+        <div class="badge"><span class="status-dot"></span>v2.0.0</div>
     </div>
 
     <div class="card">
-        <div class="card-title">激活地址（任意GUID均可激活）</div>
+        <div class="card-title">激活地址（自动生成）</div>
         <div class="url-box">
-            <div class="url-text">{base}/<span class="token">{{GUID}}</span></div>
-            <button class="copy-btn" onclick="copyUrl(this)">复制</button>
+            <div class="url-text" id="urlText">{base}/<span class="token" id="guidDisplay">生成中...</span></div>
+            <div class="btn-row">
+                <button class="btn" id="copyBtn" onclick="copyUrl()">复制地址</button>
+                <button class="btn regen" onclick="regenerate()">重新生成</button>
+            </div>
         </div>
     </div>
 
@@ -155,26 +163,57 @@ async def index(request: Request):
         <div class="steps">
             <div class="step"><div class="step-num">1</div><div class="step-text">打开 IntelliJ IDEA / WebStorm 等 IDE</div></div>
             <div class="step"><div class="step-num">2</div><div class="step-text">菜单栏 → <code>JRebel</code> → <code>Enter License</code></div></div>
-            <div class="step"><div class="step-num">3</div><div class="step-text">选择 <strong>License server</strong>，URL 填入上方任意地址</div></div>
+            <div class="step"><div class="step-num">3</div><div class="step-text">选择 <strong>License server</strong>，粘贴上方激活地址</div></div>
             <div class="step"><div class="step-num">4</div><div class="step-text">邮箱任意填写（如 <code>test@jrebel.com</code>）</div></div>
             <div class="step"><div class="step-num">5</div><div class="step-text">点击 <strong>Activate</strong> 激活</div></div>
         </div>
     </div>
 
-    <div class="footer">AFrank · JRebel License Server · 跳过激活版</div>
+    <div class="footer">AFrank · JRebel License Server</div>
 </div>
 <script>
-function copyUrl(btn) {{
-    const url = "{base}/" + Math.random().toString(36).substring(2);
-    navigator.clipboard.writeText(url).then(() => {{
-        btn.textContent = "已复制 ✓";
-        btn.classList.add("copied");
-        setTimeout(() => {{
-            btn.textContent = "复制";
-            btn.classList.remove("copied");
+var baseUrl = "{base}";
+
+function genGuid() {{
+    return 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx'.replace(/x/g, function() {{
+        return Math.floor(Math.random() * 16).toString(16);
+    }});
+}}
+
+function getGuid() {{
+    return localStorage.getItem('jrebel_guid') || genGuid();
+}}
+
+function saveGuid(guid) {{
+    localStorage.setItem('jrebel_guid', guid);
+}}
+
+function render() {{
+    var guid = getGuid();
+    document.getElementById('guidDisplay').textContent = guid;
+    return guid;
+}}
+
+function copyUrl() {{
+    var btn = document.getElementById('copyBtn');
+    var guid = getGuid();
+    navigator.clipboard.writeText(baseUrl + '/' + guid).then(function() {{
+        btn.textContent = '已复制 ✓';
+        btn.classList.add('copied');
+        setTimeout(function() {{
+            btn.textContent = '复制地址';
+            btn.classList.remove('copied');
         }}, 2000);
     }});
 }}
+
+function regenerate() {{
+    var guid = genGuid();
+    saveGuid(guid);
+    document.getElementById('guidDisplay').textContent = guid;
+}
+
+render();
 </script>
 </body>
 </html>"""
@@ -189,7 +228,6 @@ async def jrebel_leases(request: Request):
     JRebel 租约请求（核心激活接口）
     模拟 JRebel 2018.1+ 的激活协议
     """
-    # 支持所有格式的请求体
     if request.method == "POST":
         content_type = request.headers.get("content-type", "")
         if "application/json" in content_type:
@@ -208,7 +246,6 @@ async def jrebel_leases(request: Request):
     else:
         body = {}
 
-    # JRebel 可能把参数放 query string
     params = dict(request.query_params)
     params.update(body)
 
@@ -254,13 +291,11 @@ async def jrebel_leases(request: Request):
 
 @app.api_route("/agent/leases", methods=["GET", "POST"])
 async def agent_leases(request: Request):
-    """agent 路径别名（JetBrains 风格）"""
     return await jrebel_leases(request)
 
 
 @app.api_route("/jrebel/leases/1", methods=["GET", "POST", "DELETE"])
 async def jrebel_release(request: Request):
-    """释放租约"""
     params = dict(request.query_params)
     username = params.get("username", params.get("userName", "Administrator"))
     response = {
@@ -278,13 +313,11 @@ async def jrebel_release(request: Request):
 
 @app.api_route("/agent/leases/1", methods=["GET", "POST", "DELETE"])
 async def agent_release(request: Request):
-    """agent 释放租约别名"""
     return await jrebel_release(request)
 
 
 @app.api_route("/jrebel/validate-connection", methods=["GET", "POST"])
 async def jrebel_validate(request: Request):
-    """JRebel 连接验证"""
     response = {
         "serverVersion": "3.2.4",
         "serverProtocolVersion": "1.1",
@@ -302,10 +335,8 @@ async def jrebel_validate(request: Request):
 
 @app.api_route("/rpc/ping.action", methods=["GET", "POST"])
 async def ping(request: Request):
-    """JetBrains ping（零停机发布用）"""
     params = dict(request.query_params)
     salt = params.get("salt", "")
-
     xml = f"<PingResponse><message></message><responseCode>OK</responseCode><salt>{salt}</salt></PingResponse>"
     return Response(content=xml, media_type="text/html; charset=utf-8",
                    headers={"Access-Control-Allow-Origin": "*"})
@@ -313,11 +344,9 @@ async def ping(request: Request):
 
 @app.api_route("/rpc/obtainTicket.action", methods=["GET", "POST"])
 async def obtain_ticket(request: Request):
-    """JetBrains 获取票据"""
     params = dict(request.query_params)
     salt = params.get("salt", "")
     username = params.get("userName", "Administrator")
-
     prolongation = "607875500"
     xml = (
         f"<ObtainTicketResponse><message></message>"
@@ -333,31 +362,25 @@ async def obtain_ticket(request: Request):
 
 @app.api_route("/rpc/releaseTicket.action", methods=["GET", "POST"])
 async def release_ticket(request: Request):
-    """JetBrains 释放票据"""
     params = dict(request.query_params)
     salt = params.get("salt", "")
-
     xml = f"<ReleaseTicketResponse><message></message><responseCode>OK</responseCode><salt>{salt}</salt></ReleaseTicketResponse>"
     return Response(content=xml, media_type="text/html; charset=utf-8",
                    headers={"Access-Control-Allow-Origin": "*"})
 
 
-# ─── 通用 catch-all（处理任意 GUID 路径） ────────────────────
+# ─── 通用 catch-all ─────────────────────────────────────────
 
 @app.api_route("/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"])
 async def catch_all(path: str, request: Request):
-    """
-    任意路径：GET 返回激活页面，POST 返回激活成功
-    """
     ip = request.client.host if request.client else "unknown"
     logger.info(f"[Catch-all] path=/{path} method={request.method} from {ip}")
 
     if request.method == "GET":
-        # GET /{guid} → 重定向到首页（显示激活信息）
         base = _get_base_url(request)
         return HTMLResponse(f"""
 <!DOCTYPE html><html><head><meta charset="UTF-8">
-<title>JRebel License Server</title>
+<title>AFrank JRebel License Server</title>
 <style>
 body{{font-family:system-ui;background:#0f0f23;color:#e0e0e0;min-height:100vh;
       display:flex;align-items:center;justify-content:center;margin:0}}
@@ -369,21 +392,19 @@ h1{{color:white;margin-bottom:8px}} .sub{{color:#888;margin-bottom:30px}}
       word-break:break-all;color:white;font-size:14px}}
 .btn{{background:#4a6bff;color:white;border:none;border-radius:8px;
       padding:10px 24px;font-size:14px;cursor:pointer;margin-top:8px}}
-a{{color:#4a6bff;text-decoration:none}}a:hover{{text-decoration:underline}}
 </style></head><body>
 <div class=card>
   <h1>⚡ AFrank JRebel License Server</h1>
-  <p class=sub>v2.0.0 · 跳过激活版</p>
+  <p class=sub>v2.0.0</p>
   <div class=box>{base}/{path}</div>
   <p style="color:#888;font-size:13px;line-height:1.6">
     在 JRebel 激活界面选择 <strong>License server</strong>，<br>
     填入上方地址即可激活。
   </p>
   <button class=btn onclick="navigator.clipboard.writeText('{base}/{path}')">复制激活地址 ✓</button>
-  <p style="margin-top:24px"><a href="/">← 返回首页</a></p>
+  <p style="margin-top:24px"><a href="/" style="color:#4a6bff">← 返回首页</a></p>
 </div></body></html>""")
 
-    # POST /{anything} → 返回激活成功
     return JSONResponse({
         "serverVersion": "3.2.4",
         "serverProtocolVersion": "1.1",
@@ -430,6 +451,9 @@ async def health():
 if __name__ == "__main__":
     import uvicorn
     port = int(os.getenv("PORT", "9000"))
+    prefix = os.getenv("SERVER_PREFIX", "")
     logger.info(f"Starting JRebel License Server on port {port}")
+    if prefix:
+        logger.info(f"Server prefix: {prefix}")
     logger.info(f"Skip-activation mode: any GUID activates (supported: {SUPPORTED_FROM} ~ 2026.1)")
     uvicorn.run(app, host="0.0.0.0", port=port, log_level="info")

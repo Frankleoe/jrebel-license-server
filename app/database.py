@@ -78,7 +78,7 @@ def get_stats():
         cur = conn.execute("SELECT COUNT(*) as total, COUNT(DISTINCT email) as unique_emails FROM activations")
         row = cur.fetchone()
         conn.close()
-        return dict(row) if row else {"total": 0, "unique_emails": 0}
+        return {"total": row[0], "unique_emails": row[1]} if row else {"total": 0, "unique_emails": 0}
     except Exception as e:
         logger.warning(f"Failed to get stats: {e}")
         return {"total": 0, "unique_emails": 0}

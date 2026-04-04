@@ -1,15 +1,13 @@
-# 本地开发测试用（无需 SSL）
+# 本地开发测试
 services:
   jrebel-app:
-    build:
-      context: ./app
-      dockerfile: Dockerfile
+    build: ./app
     container_name: jrebel-license-server-dev
     ports:
-      - "8080:8080"
+      - "9000:9000"
     environment:
-      - JRebel_Server_URL=http://localhost:8080
+      - JRebel_Server_URL=http://localhost:9000
       - JRebel_Token=dev-test-token-12345
       - JRebel_Proxy_Target=https://www.jrebel.com
-      - PORT=8080
+      - PORT=9000
     restart: unless-stopped

@@ -8,12 +8,17 @@ import os
 import logging
 from datetime import datetime, timezone
 from fastapi import FastAPI, Request, Response
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
+
+from database import init_db, record_activation, get_recent_activations, get_stats
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger(__name__)
 
 app = FastAPI(title="AFrank JRebel License Server", version="2.0.0")
+
+# 初始化数据库
+init_db()
 
 SUPPORTED_FROM = "2018.1"
 
@@ -166,6 +171,7 @@ async def jrebel_leases(request: Request):
 
     ip = request.client.host if request.client else "unknown"
     logger.info(f"[JRebel Leases] guid={guid[:20]} user={username} offline={offline} from {ip}")
+    record_activation(username, guid, ip, "jrebel")
 
     if offline:
         client_time = params.get("clientTime", str(int(datetime.now(timezone.utc).timestamp() * 1000)))
@@ -328,6 +334,60 @@ async def catch_all(path: str, request: Request):
         "licenseValidFrom": 1490544001000,
         "licenseValidUntil": 1893455999000,
     })
+
+
+# ─── 管理页面 ────────────────────────────────────────────────
+
+@app.get("/admin")
+async def admin_page():
+    stats = get_stats()
+    recent = get_recent_activations(100)
+    base = os.getenv("SERVER_PREFIX", "")
+    rows_html = ""
+    for r in recent:
+        rows_html += (
+            "<tr>"
+            "<td style='padding:8px;border-bottom:1px solid #2a2a4a'>" + _escape(r["email"]) + "</td>"
+            "<td style='padding:8px;border-bottom:1px solid #2a2a4a;font-family:monospace;font-size:12px'>" + _escape(r["guid"])[:8] + "...</td>"
+            "<td style='padding:8px;border-bottom:1px solid #2a2a4a'>" + _escape(r["ip"]) + "</td>"
+            "<td style='padding:8px;border-bottom:1px solid #2a2a4a'>" + _escape(r["activated_at"]) + "</td>"
+            "</tr>"
+        )
+
+    html = (
+        "<!DOCTYPE html><html><head>"
+        "<meta charset='UTF-8'>"
+        "<title>Activations - AFrank JRebel</title>"
+        "<style>"
+        "body{font-family:system-ui;background:#0f0f23;color:#e0e0e0;min-height:100vh;margin:0;padding:20px}"
+        "h1{color:white;margin-bottom:20px}"
+        ".stats{display:flex;gap:20px;margin-bottom:30px}"
+        ".stat{background:#1a1a2e;border:1px solid #2a2a4a;border-radius:12px;padding:20px 30px}"
+        ".stat .num{font-size:32px;font-weight:bold;color:#4a6bff}"
+        ".stat .label{color:#888;font-size:13px;margin-top:4px}"
+        "table{width:100%;border-collapse:collapse;background:#1a1a2e;border-radius:12px;overflow:hidden}"
+        "th{background:#1a1a2e;color:#888;font-size:12px;text-transform:uppercase;letter-spacing:1px;text-align:left;padding:12px 16px}"
+        "td{color:#ccc;font-size:13px}"
+        "tr:hover{background:#22223a}"
+        ".back{color:#4a6bff;margin-bottom:20px;display:inline-block}"
+        "</style></head><body>"
+        "<a class='back' href='/'>← \u8fd4\u56de\u9996\u9875</a>"
+        "<h1>\u6fc0\u6d3b\u8bb0\u5f55</h1>"
+        "<div class='stats'>"
+        "<div class='stat'><div class='num'>" + str(stats["total"]) + "</div><div class='label'>\u603b\u6fc0\u6d3b\u6b21\u6570</div></div>"
+        "<div class='stat'><div class='num'>" + str(stats["unique_emails"]) + "</div><div class='label'>\u552f\u4e00\u90ae\u7bb1</div></div>"
+        "</div>"
+        "<table>"
+        "<thead><tr><th>\u90ae\u7bb1</th><th>GUID</th><th>IP</th><th>\u65f6\u95f4</th></tr></thead>"
+        "<tbody>" + rows_html + "</tbody>"
+        "</table>"
+        "</body></html>"
+    )
+    return HTMLResponse(html)
+
+
+def _escape(s):
+    return (str(s).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace('"', "&quot;"))
 
 
 # ─── 信息接口 ────────────────────────────────────────────────

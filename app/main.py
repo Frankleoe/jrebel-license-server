@@ -6,7 +6,7 @@ JRebel License Server - 跳过激活版
 
 import os
 import logging
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timezone
 from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse, JSONResponse
 
@@ -15,9 +15,22 @@ logger = logging.getLogger(__name__)
 
 app = FastAPI(title="JRebel License Server", version="2.0.0")
 
+# JRebel 支持的版本（2018.1 及之后所有版本）
+SUPPORTED_VERSIONS = [
+    "2024.3", "2024.2", "2024.1",  # 最新
+    "2023.3", "2023.2", "2023.1",
+    "2022.3", "2022.2", "2022.1",
+    "2021.3", "2021.2", "2021.1",
+    "2020.3", "2020.2", "2020.1",
+    "2019.3", "2019.2", "2019.1",
+    "2018.3", "2018.2", "2018.1",
+]
+
 
 @app.get("/")
-async def index():
+async def index(request: Request):
+    server_url = str(request.base_url).rstrip("/")
+
     html = f"""<!DOCTYPE html>
 <html lang="zh">
 <head>
@@ -102,6 +115,9 @@ async def index():
         }}
         .step-text {{ font-size: 14px; line-height: 1.6; color: var(--text); padding-top: 4px; }}
         .step-text code {{ background: rgba(255,255,255,0.08); padding: 2px 8px; border-radius: 4px; font-family: monospace; color: var(--primary); }}
+        .version-tags {{ display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }}
+        .version-tag {{ background: rgba(74,107,255,0.15); color: #a0b0ff; padding: 3px 10px; border-radius: 6px; font-size: 12px; font-family: monospace; }}
+        .version-tag.latest {{ background: rgba(46,204,113,0.15); color: #2ecc71; border: 1px solid rgba(46,204,113,0.3); }}
         .footer {{ text-align: center; color: #888; font-size: 12px; margin-top: 30px; }}
     </style>
 </head>
@@ -110,15 +126,37 @@ async def index():
     <div class="header">
         <div class="logo">⚡</div>
         <div class="title">JRebel License Server</div>
-        <div class="subtitle">{SERVER_URL}</div>
+        <div class="subtitle">{server_url}</div>
         <div class="badge"><span class="status-dot"></span>运行中 · v2.0.0</div>
     </div>
 
     <div class="card">
         <div class="card-title">激活地址（任意GUID均可激活）</div>
         <div class="url-box">
-            <div class="url-text">{SERVER_URL}/<span class="token">{{GUID}}</span></div>
+            <div class="url-text">{server_url}/<span class="token">{{GUID}}</span></div>
             <button class="copy-btn" onclick="copyUrl(this)">复制</button>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-title">支持版本</div>
+        <div class="version-tags">
+            <span class="version-tag latest">2024.3 ← 最新</span>
+            <span class="version-tag">2024.2</span>
+            <span class="version-tag">2024.1</span>
+            <span class="version-tag">2023.3</span>
+            <span class="version-tag">2023.2</span>
+            <span class="version-tag">2023.1</span>
+            <span class="version-tag">2022.3</span>
+            <span class="version-tag">2022.2</span>
+            <span class="version-tag">2022.1</span>
+            <span class="version-tag">2021.3</span>
+            <span class="version-tag">2021.2</span>
+            <span class="version-tag">2021.1</span>
+            <span class="version-tag">2020.3</span>
+            <span class="version-tag">2020.2</span>
+            <span class="version-tag">2020.1</span>
+            <span class="version-tag">2019.x ~ 2018.1</span>
         </div>
     </div>
 
@@ -133,11 +171,11 @@ async def index():
         </div>
     </div>
 
-    <div class="footer">JRebel License Server · 跳过激活版 · 无需代理官方服务器</div>
+    <div class="footer">JRebel License Server · 跳过激活版 · 无需连接官方服务器</div>
 </div>
 <script>
 function copyUrl(btn) {{
-    const url = "{SERVER_URL}/" + Math.random().toString(36).substring(2);
+    const url = "{server_url}/" + Math.random().toString(36).substring(2);
     navigator.clipboard.writeText(url).then(() => {{
         btn.textContent = "已复制 ✓";
         btn.classList.add("copied");
@@ -157,10 +195,10 @@ function copyUrl(btn) {{
 async def activate_any(path: str, request: Request):
     """
     任意路径都返回激活成功，不连官方服务器
+    支持 JRebel 2018.1 及之后所有版本
     """
     logger.info(f"[Activation] path=/{path} from {request.client.host}")
 
-    # JRebel 2018.1+ 激活响应
     return JSONResponse({
         "valid": True,
         "jrebelVersion": "2024.3.0",
@@ -177,12 +215,14 @@ async def activate_any(path: str, request: Request):
 
 
 @app.get("/info")
-async def info():
+async def info(request: Request):
+    server_url = str(request.base_url).rstrip("/")
     return JSONResponse({
-        "server": SERVER_URL,
+        "server": server_url,
         "version": "2.0.0",
         "status": "running",
         "mode": "skip-activation",
+        "supportedFrom": "2018.1",
         "timestamp": datetime.now(timezone.utc).isoformat(),
     })
 
@@ -196,5 +236,5 @@ if __name__ == "__main__":
     import uvicorn
     port = int(os.getenv("PORT", "9000"))
     logger.info(f"Starting JRebel License Server on port {port}")
-    logger.info(f"Any GUID will activate successfully")
+    logger.info(f"Any GUID will activate successfully (supported: 2018.1 ~ 2024.3)")
     uvicorn.run(app, host="0.0.0.0", port=port, log_level="info")

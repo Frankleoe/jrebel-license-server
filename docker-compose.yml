@@ -5,6 +5,4 @@ services:
     restart: unless-stopped
     ports:
       - "9000:9000"
-    environment:
-      - JRebel_Server_URL=https://jrebel.afrank.cn
-      - JRebel_Token=553ebb30-c42c-7d0c-9cda-032ecb55286c
+

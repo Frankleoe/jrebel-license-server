@@ -33,7 +33,7 @@ async def index(request: Request):
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>JRebel License Server</title>
+    <title>AFrank JRebel License Server</title>
     <style>
         :root {{
             --primary: #4a6bff;
@@ -122,7 +122,7 @@ async def index(request: Request):
 <div class="container">
     <div class="header">
         <div class="logo">⚡</div>
-        <div class="title">JRebel License Server</div>
+        <div class="title">AFrank JRebel License Server</div>
         <div class="subtitle">{base}</div>
         <div class="badge"><span class="status-dot"></span>运行中 · v2.0.0</div>
     </div>
@@ -161,7 +161,7 @@ async def index(request: Request):
         </div>
     </div>
 
-    <div class="footer">JRebel License Server · 跳过激活版 · 无需连接官方服务器</div>
+    <div class="footer">AFrank · JRebel License Server · 跳过激活版</div>
 </div>
 <script>
 function copyUrl(btn) {{
@@ -372,7 +372,7 @@ h1{{color:white;margin-bottom:8px}} .sub{{color:#888;margin-bottom:30px}}
 a{{color:#4a6bff;text-decoration:none}}a:hover{{text-decoration:underline}}
 </style></head><body>
 <div class=card>
-  <h1>⚡ JRebel License Server</h1>
+  <h1>⚡ AFrank JRebel License Server</h1>
   <p class=sub>v2.0.0 · 跳过激活版</p>
   <div class=box>{base}/{path}</div>
   <p style="color:#888;font-size:13px;line-height:1.6">

@@ -105,7 +105,7 @@ def _build_index_html(base: str) -> str:
         '  <div class="card">\n'
         '    <div class="card-title">&#28608;&#27963;&#27493;&#39588;</div>\n'
         '    <div class="steps">\n'
-        '      <div class="step"><div class="step-num">1</div><div class="step-text">&#25171;&#24320; IntelliJ IDEA / WebStorm &#31561; IDE</div></div>\n'
+        '      <div class="step"><div class="step-num">1</div><div class="step-text">&#25171;&#24320; IntelliJ IDEA &#31561; IDE</div></div>\n'
         '      <div class="step"><div class="step-num">2</div><div class="step-text">&#33756;&#21306;&#26639; &#8594; <code>JRebel</code> &#8594; <code>Enter License</code></div></div>\n'
         '      <div class="step"><div class="step-num">3</div><div class="step-text">&#36873;&#25321; <strong>License server</strong>&#65292;&#31896;&#36148;&#19978;&#26041;&#28608;&#27963;&#36611;&#21160;&#22320;&#22336;</div></div>\n'
         '      <div class="step"><div class="step-num">4</div><div class="step-text">&#37038;&#31665;&#20219;&#24847;&#22635;&#20889;&#65288;&#22914; <code>test@jrebel.com</code>&#65289;</div></div>\n'

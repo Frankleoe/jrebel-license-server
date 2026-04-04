@@ -27,6 +27,40 @@ def _get_base_url(request: Request) -> str:
     return str(request.base_url).rstrip("/")
 
 
+def _jrebel_response(username: str = "", offline: bool = False):
+    """统一的 JRebel 激活响应格式"""
+    if offline:
+        now_ms = int(datetime.now(timezone.utc).timestamp() * 1000)
+        valid_from = now_ms
+        valid_until = now_ms + 180 * 24 * 60 * 60 * 1000
+    else:
+        valid_from = None
+        valid_until = None
+    return {
+        "serverVersion": "2024.3.0",
+        "serverProtocolVersion": "1.1",
+        "serverGuid": "a1b4aea8-b031-4302-b602-670a990272cb",
+        "groupType": "managed",
+        "id": 1,
+        "licenseType": 1,
+        "evaluationLicense": False,
+        "signature": "skip-activation",
+        "serverRandomness": "a1b2c3d4e5f6",
+        "seatPoolType": "standalone",
+        "statusCode": "SUCCESS",
+        "offline": offline,
+        "autoProlongation": False,
+        "gracePeriod": False,
+        "validFrom": valid_from,
+        "validUntil": valid_until,
+        "company": username or "Developer",
+        "orderId": "",
+        "zeroIds": [],
+        "licenseValidFrom": 1490544001000,
+        "licenseValidUntil": 1893455999000,
+    }
+
+
 # ─── Web 页面 ────────────────────────────────────────────────
 
 def _build_index_html(base: str) -> str:
@@ -170,35 +204,7 @@ async def jrebel_leases(request: Request):
     logger.info(f"[JRebel Leases] guid={guid[:20]} user={username} offline={offline} from {ip}")
     record_activation(username, guid, ip, "jrebel")
 
-    if offline:
-        client_time = params.get("clientTime", str(int(datetime.now(timezone.utc).timestamp() * 1000)))
-        valid_until = int(client_time) + 180 * 24 * 60 * 60 * 1000
-        valid_from = int(client_time)
-    else:
-        valid_from = None
-        valid_until = None
-
-    return JSONResponse({
-        "serverVersion": "3.2.4",
-        "serverProtocolVersion": "1.1",
-        "serverGuid": "a1b4aea8-b031-4302-b602-670a990272cb",
-        "groupType": "managed",
-        "id": 1,
-        "licenseType": 1,
-        "evaluationLicense": False,
-        "signature": "skip-activation",
-        "serverRandomness": "a1b2c3d4e5f6",
-        "seatPoolType": "standalone",
-        "statusCode": "SUCCESS",
-        "offline": offline,
-        "validFrom": valid_from,
-        "validUntil": valid_until,
-        "company": username or "Developer",
-        "orderId": "",
-        "zeroIds": [],
-        "licenseValidFrom": 1490544001000,
-        "licenseValidUntil": 1893455999000,
-    })
+    return JSONResponse(_jrebel_response(username, offline))
 
 
 @app.api_route("/agent/leases", methods=["GET", "POST"])
@@ -211,7 +217,7 @@ async def jrebel_release(request: Request):
     params = dict(request.query_params)
     username = params.get("username", params.get("userName", "Administrator"))
     return JSONResponse({
-        "serverVersion": "3.2.4",
+        "serverVersion": "2024.3.0",
         "serverProtocolVersion": "1.1",
         "serverGuid": "a1b4aea8-b031-4302-b602-670a990272cb",
         "groupType": "managed",
@@ -230,7 +236,7 @@ async def agent_release(request: Request):
 @app.api_route("/jrebel/validate-connection", methods=["GET", "POST"])
 async def jrebel_validate(request: Request):
     return JSONResponse({
-        "serverVersion": "3.2.4",
+        "serverVersion": "2024.3.0",
         "serverProtocolVersion": "1.1",
         "serverGuid": "a1b4aea8-b031-4302-b602-670a990272cb",
         "groupType": "managed",
@@ -363,27 +369,7 @@ async def catch_all(path: str, request: Request):
         )
         return HTMLResponse(html)
 
-    return JSONResponse({
-        "serverVersion": "3.2.4",
-        "serverProtocolVersion": "1.1",
-        "serverGuid": "a1b4aea8-b031-4302-b602-670a990272cb",
-        "groupType": "managed",
-        "id": 1,
-        "licenseType": 1,
-        "evaluationLicense": False,
-        "signature": "skip",
-        "serverRandomness": "a1b2c3d4e5f6",
-        "seatPoolType": "standalone",
-        "statusCode": "SUCCESS",
-        "offline": False,
-        "validFrom": None,
-        "validUntil": None,
-        "company": "Developer",
-        "orderId": "",
-        "zeroIds": [],
-        "licenseValidFrom": 1490544001000,
-        "licenseValidUntil": 1893455999000,
-    })
+    return JSONResponse(_jrebel_response())
 
 
 # ─── 管理页面 ────────────────────────────────────────────────

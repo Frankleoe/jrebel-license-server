@@ -1,37 +1,33 @@
 # -*- coding: utf-8 -*-
 """
-JRebel License Server - 跳过激活版
-任何 GUID 都能激活，直接返回成功，不连官方服务器
+JRebel License Server - 真正跳过激活版
+模拟 JRebel 2018.1+ 的激活协议，返回正确格式的响应
 """
 
 import os
 import logging
 from datetime import datetime, timezone
-from fastapi import FastAPI, Request
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi import FastAPI, Request, Response
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger(__name__)
 
 app = FastAPI(title="JRebel License Server", version="2.0.0")
 
-# JRebel 支持的版本（2018.1 及之后所有版本）
-SUPPORTED_VERSIONS = [
-    "2026.1", "2025.x",  # 最新
-    "2024.3", "2024.2", "2024.1",
-    "2023.3", "2023.2", "2023.1",
-    "2022.3", "2022.2", "2022.1",
-    "2021.3", "2021.2", "2021.1",
-    "2020.3", "2020.2", "2020.1",
-    "2019.3", "2019.2", "2019.1",
-    "2018.3", "2018.2", "2018.1",
-]
+# JRebel 支持的版本
+SUPPORTED_FROM = "2018.1"
 
+
+def _get_base_url(request: Request) -> str:
+    return str(request.base_url).rstrip("/")
+
+
+# ─── Web 页面 ────────────────────────────────────────────────
 
 @app.get("/")
 async def index(request: Request):
-    server_url = str(request.base_url).rstrip("/")
-
+    base = _get_base_url(request)
     html = f"""<!DOCTYPE html>
 <html lang="zh">
 <head>
@@ -127,14 +123,14 @@ async def index(request: Request):
     <div class="header">
         <div class="logo">⚡</div>
         <div class="title">JRebel License Server</div>
-        <div class="subtitle">{server_url}</div>
+        <div class="subtitle">{base}</div>
         <div class="badge"><span class="status-dot"></span>运行中 · v2.0.0</div>
     </div>
 
     <div class="card">
         <div class="card-title">激活地址（任意GUID均可激活）</div>
         <div class="url-box">
-            <div class="url-text">{server_url}/<span class="token">{{GUID}}</span></div>
+            <div class="url-text">{base}/<span class="token">{{GUID}}</span></div>
             <button class="copy-btn" onclick="copyUrl(this)">复制</button>
         </div>
     </div>
@@ -145,11 +141,7 @@ async def index(request: Request):
             <span class="version-tag latest">2026.1 ← 最新</span>
             <span class="version-tag">2025.x</span>
             <span class="version-tag">2024.3</span>
-            <span class="version-tag">2024.2</span>
-            <span class="version-tag">2024.1</span>
-            <span class="version-tag">2023.3</span>
-            <span class="version-tag">2023.2</span>
-            <span class="version-tag">2023.1</span>
+            <span class="version-tag">2023.x</span>
             <span class="version-tag">2022.x</span>
             <span class="version-tag">2021.x</span>
             <span class="version-tag">2020.x</span>
@@ -173,7 +165,7 @@ async def index(request: Request):
 </div>
 <script>
 function copyUrl(btn) {{
-    const url = "{server_url}/" + Math.random().toString(36).substring(2);
+    const url = "{base}/" + Math.random().toString(36).substring(2);
     navigator.clipboard.writeText(url).then(() => {{
         btn.textContent = "已复制 ✓";
         btn.classList.add("copied");
@@ -189,38 +181,243 @@ function copyUrl(btn) {{
     return HTMLResponse(html)
 
 
-@app.api_route("/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"])
-async def activate_any(path: str, request: Request):
-    """
-    任意路径都返回激活成功，不连官方服务器
-    支持 JRebel 2018.1 及之后所有版本
-    """
-    logger.info(f"[Activation] path=/{path} from {request.client.host}")
+# ─── JRebel 激活协议 ─────────────────────────────────────────
 
+@app.api_route("/jrebel/leases", methods=["GET", "POST"])
+async def jrebel_leases(request: Request):
+    """
+    JRebel 租约请求（核心激活接口）
+    模拟 JRebel 2018.1+ 的激活协议
+    """
+    # 支持所有格式的请求体
+    if request.method == "POST":
+        content_type = request.headers.get("content-type", "")
+        if "application/json" in content_type:
+            try:
+                body = await request.json()
+            except Exception:
+                body = {}
+        elif "application/x-www-form-urlencoded" in content_type or "application/form-data" in content_type:
+            try:
+                body = await request.form()
+                body = {k: v for k, v in body.items()}
+            except Exception:
+                body = {}
+        else:
+            body = {}
+    else:
+        body = {}
+
+    # JRebel 可能把参数放 query string
+    params = dict(request.query_params)
+    params.update(body)
+
+    guid = params.get("guid", "")
+    username = params.get("username", params.get("userName", ""))
+    randomness = params.get("randomness", "")
+    offline = str(params.get("offline", "false")).lower() == "true"
+
+    ip = request.client.host if request.client else "unknown"
+    logger.info(f"[JRebel Leases] guid={guid[:20]} user={username} offline={offline} from {ip}")
+
+    if offline:
+        client_time = params.get("clientTime", str(int(datetime.now(timezone.utc).timestamp() * 1000)))
+        valid_until = int(client_time) + 180 * 24 * 60 * 60 * 1000
+        valid_from = int(client_time)
+    else:
+        valid_from = None
+        valid_until = None
+
+    response = {
+        "serverVersion": "3.2.4",
+        "serverProtocolVersion": "1.1",
+        "serverGuid": "a1b4aea8-b031-4302-b602-670a990272cb",
+        "groupType": "managed",
+        "id": 1,
+        "licenseType": 1,
+        "evaluationLicense": False,
+        "signature": "skip-activation",
+        "serverRandomness": "a1b2c3d4e5f6",
+        "seatPoolType": "standalone",
+        "statusCode": "SUCCESS",
+        "offline": offline,
+        "validFrom": valid_from,
+        "validUntil": valid_until,
+        "company": username or "Developer",
+        "orderId": "",
+        "zeroIds": [],
+        "licenseValidFrom": 1490544001000,
+        "licenseValidUntil": 1893455999000,
+    }
+    return JSONResponse(response)
+
+
+@app.api_route("/agent/leases", methods=["GET", "POST"])
+async def agent_leases(request: Request):
+    """agent 路径别名（JetBrains 风格）"""
+    return await jrebel_leases(request)
+
+
+@app.api_route("/jrebel/leases/1", methods=["GET", "POST", "DELETE"])
+async def jrebel_release(request: Request):
+    """释放租约"""
+    params = dict(request.query_params)
+    username = params.get("username", params.get("userName", "Administrator"))
+    response = {
+        "serverVersion": "3.2.4",
+        "serverProtocolVersion": "1.1",
+        "serverGuid": "a1b4aea8-b031-4302-b602-670a990272cb",
+        "groupType": "managed",
+        "statusCode": "SUCCESS",
+        "msg": None,
+        "statusMessage": None,
+        "company": username,
+    }
+    return JSONResponse(response)
+
+
+@app.api_route("/agent/leases/1", methods=["GET", "POST", "DELETE"])
+async def agent_release(request: Request):
+    """agent 释放租约别名"""
+    return await jrebel_release(request)
+
+
+@app.api_route("/jrebel/validate-connection", methods=["GET", "POST"])
+async def jrebel_validate(request: Request):
+    """JRebel 连接验证"""
+    response = {
+        "serverVersion": "3.2.4",
+        "serverProtocolVersion": "1.1",
+        "serverGuid": "a1b4aea8-b031-4302-b602-670a990272cb",
+        "groupType": "managed",
+        "statusCode": "SUCCESS",
+        "company": "Developer",
+        "canGetLease": True,
+        "licenseType": 1,
+        "evaluationLicense": False,
+        "seatPoolType": "standalone",
+    }
+    return JSONResponse(response)
+
+
+@app.api_route("/rpc/ping.action", methods=["GET", "POST"])
+async def ping(request: Request):
+    """JetBrains ping（零停机发布用）"""
+    params = dict(request.query_params)
+    salt = params.get("salt", "")
+
+    xml = f"<PingResponse><message></message><responseCode>OK</responseCode><salt>{salt}</salt></PingResponse>"
+    return Response(content=xml, media_type="text/html; charset=utf-8",
+                   headers={"Access-Control-Allow-Origin": "*"})
+
+
+@app.api_route("/rpc/obtainTicket.action", methods=["GET", "POST"])
+async def obtain_ticket(request: Request):
+    """JetBrains 获取票据"""
+    params = dict(request.query_params)
+    salt = params.get("salt", "")
+    username = params.get("userName", "Administrator")
+
+    prolongation = "607875500"
+    xml = (
+        f"<ObtainTicketResponse><message></message>"
+        f"<prolongationPeriod>{prolongation}</prolongationPeriod>"
+        f"<responseCode>OK</responseCode><salt>{salt}</salt>"
+        f"<ticketId>1</ticketId>"
+        f"<ticketProperties>licensee={username}\tlicenseType=0\t</ticketProperties>"
+        f"</ObtainTicketResponse>"
+    )
+    return Response(content=xml, media_type="text/html; charset=utf-8",
+                   headers={"Access-Control-Allow-Origin": "*"})
+
+
+@app.api_route("/rpc/releaseTicket.action", methods=["GET", "POST"])
+async def release_ticket(request: Request):
+    """JetBrains 释放票据"""
+    params = dict(request.query_params)
+    salt = params.get("salt", "")
+
+    xml = f"<ReleaseTicketResponse><message></message><responseCode>OK</responseCode><salt>{salt}</salt></ReleaseTicketResponse>"
+    return Response(content=xml, media_type="text/html; charset=utf-8",
+                   headers={"Access-Control-Allow-Origin": "*"})
+
+
+# ─── 通用 catch-all（处理任意 GUID 路径） ────────────────────
+
+@app.api_route("/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"])
+async def catch_all(path: str, request: Request):
+    """
+    任意路径：GET 返回激活页面，POST 返回激活成功
+    """
+    ip = request.client.host if request.client else "unknown"
+    logger.info(f"[Catch-all] path=/{path} method={request.method} from {ip}")
+
+    if request.method == "GET":
+        # GET /{guid} → 重定向到首页（显示激活信息）
+        base = _get_base_url(request)
+        return HTMLResponse(f"""
+<!DOCTYPE html><html><head><meta charset="UTF-8">
+<title>JRebel License Server</title>
+<style>
+body{{font-family:system-ui;background:#0f0f23;color:#e0e0e0;min-height:100vh;
+      display:flex;align-items:center;justify-content:center;margin:0}}
+.card{{background:#1a1a2e;border:1px solid #2a2a4a;border-radius:16px;
+       padding:40px;max-width:560px;width:90%;text-align:center}}
+h1{{color:white;margin-bottom:8px}} .sub{{color:#888;margin-bottom:30px}}
+.box{{background:rgba(74,107,255,0.1);border:1px dashed #4a6bff;
+      border-radius:10px;padding:16px;margin:16px 0;font-family:monospace;
+      word-break:break-all;color:white;font-size:14px}}
+.btn{{background:#4a6bff;color:white;border:none;border-radius:8px;
+      padding:10px 24px;font-size:14px;cursor:pointer;margin-top:8px}}
+a{{color:#4a6bff;text-decoration:none}}a:hover{{text-decoration:underline}}
+</style></head><body>
+<div class=card>
+  <h1>⚡ JRebel License Server</h1>
+  <p class=sub>v2.0.0 · 跳过激活版</p>
+  <div class=box>{base}/{path}</div>
+  <p style="color:#888;font-size:13px;line-height:1.6">
+    在 JRebel 激活界面选择 <strong>License server</strong>，<br>
+    填入上方地址即可激活。
+  </p>
+  <button class=btn onclick="navigator.clipboard.writeText('{base}/{path}')">复制激活地址 ✓</button>
+  <p style="margin-top:24px"><a href="/">← 返回首页</a></p>
+</div></body></html>""")
+
+    # POST /{anything} → 返回激活成功
     return JSONResponse({
-        "valid": True,
-        "jrebelVersion": "2026.1.0",
-        "licenseType": "0",
-        "maintenance": False,
-        "timestamp": datetime.now(timezone.utc).isoformat(),
-        "serverVersion": "2.0.0",
-        "gracePeriod": False,
-        "autoProlongation": False,
+        "serverVersion": "3.2.4",
+        "serverProtocolVersion": "1.1",
+        "serverGuid": "a1b4aea8-b031-4302-b602-670a990272cb",
+        "groupType": "managed",
+        "id": 1,
+        "licenseType": 1,
+        "evaluationLicense": False,
+        "signature": "skip",
+        "serverRandomness": "a1b2c3d4e5f6",
+        "seatPoolType": "standalone",
+        "statusCode": "SUCCESS",
         "offline": False,
-        "errorCode": None,
-        "errorMessage": None,
+        "validFrom": None,
+        "validUntil": None,
+        "company": "Developer",
+        "orderId": "",
+        "zeroIds": [],
+        "licenseValidFrom": 1490544001000,
+        "licenseValidUntil": 1893455999000,
     })
 
 
+# ─── 信息接口 ────────────────────────────────────────────────
+
 @app.get("/info")
 async def info(request: Request):
-    server_url = str(request.base_url).rstrip("/")
+    base = _get_base_url(request)
     return JSONResponse({
-        "server": server_url,
+        "server": base,
         "version": "2.0.0",
         "status": "running",
         "mode": "skip-activation",
-        "supportedFrom": "2018.1",
+        "supportedFrom": SUPPORTED_FROM,
         "timestamp": datetime.now(timezone.utc).isoformat(),
     })
 
@@ -234,5 +431,5 @@ if __name__ == "__main__":
     import uvicorn
     port = int(os.getenv("PORT", "9000"))
     logger.info(f"Starting JRebel License Server on port {port}")
-    logger.info(f"Any GUID will activate successfully (supported: 2018.1 ~ 2026.1)")
+    logger.info(f"Skip-activation mode: any GUID activates (supported: {SUPPORTED_FROM} ~ 2026.1)")
     uvicorn.run(app, host="0.0.0.0", port=port, log_level="info")

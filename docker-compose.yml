@@ -1,0 +1,47 @@
+services:
+  # JRebel 激活服务（FastAPI）
+  jrebel-app:
+    build:
+      context: ./app
+      dockerfile: Dockerfile
+    container_name: jrebel-license-server
+    restart: unless-stopped
+    environment:
+      # 服务器公开URL（用于激活页面显示）
+      - JRebel_Server_URL=https://jrebel.afrank.cn
+      # 激活Token（首次启动后记录，修改会导致旧token失效）
+      - JRebel_Token=553ebb30-c42c-7d0c-9cda-032ecb55286c
+      # 官方激活服务器代理地址
+      - JRebel_Proxy_Target=https://www.jrebel.com
+      - PORT=8080
+    networks:
+      - jrebel-net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  # Nginx 反向代理（SSL 终止）
+  nginx:
+    build:
+      context: ./nginx
+      dockerfile: Dockerfile
+    container_name: jrebel-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      # SSL 证书（自行挂载或使用 certbot 自动证书）
+      - ./ssl:/etc/nginx/ssl:ro
+    depends_on:
+      jrebel-app:
+        condition: service_healthy
+    networks:
+      - jrebel-net
+
+networks:
+  jrebel-net:
+    driver: bridge

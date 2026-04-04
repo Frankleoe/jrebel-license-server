@@ -1,0 +1,61 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+dist/
+build/
+*.egg
+
+# Virtual environments
+venv/
+.venv/
+env/
+
+# IDE
+.idea/
+.vscode/
+*.iml
+
+# Docker
+.docker/
+
+# SSL certificates (never commit!)
+ssl/
+*.pem
+*.key
+
+# Logs
+*.log
+logs/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Temporary
+*.tmp
+.temp/
+
+# Byte-compiled
+*.pyc
+*.pyo
+
+# Test coverage
+.coverage
+htmlcov/
+.pytest_cache/
+
+# local dev overrides
+.env
+.env.local
+.env.*.local
+
+# SQLite DB files
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+
+# quant-platform workspace
+# (don't include quant-platform core files in this sub-project)

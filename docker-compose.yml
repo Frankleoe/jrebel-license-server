@@ -3,11 +3,8 @@ services:
     image: registry.cn-hangzhou.aliyuncs.com/afrank/jrebel-license-serveer:latest
     container_name: jrebel-license-server
     restart: unless-stopped
-    command: python -m uvicorn main:app --host 0.0.0.0 --port 9000
     ports:
       - "9000:9000"
     environment:
       - JRebel_Server_URL=https://jrebel.afrank.cn
       - JRebel_Token=553ebb30-c42c-7d0c-9cda-032ecb55286c
-      - JRebel_Proxy_Target=https://www.jrebel.com
-      - PORT=9000

@@ -15,9 +15,6 @@ logger = logging.getLogger(__name__)
 
 app = FastAPI(title="JRebel License Server", version="2.0.0")
 
-SERVER_URL = os.getenv("JRebel_Server_URL", "https://jrebel.afrank.cn")
-TOKEN = os.getenv("JRebel_Token", "active")
-
 
 @app.get("/")
 async def index():

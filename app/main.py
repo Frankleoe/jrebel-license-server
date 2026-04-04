@@ -17,7 +17,8 @@ app = FastAPI(title="JRebel License Server", version="2.0.0")
 
 # JRebel 支持的版本（2018.1 及之后所有版本）
 SUPPORTED_VERSIONS = [
-    "2024.3", "2024.2", "2024.1",  # 最新
+    "2026.1", "2025.x",  # 最新
+    "2024.3", "2024.2", "2024.1",
     "2023.3", "2023.2", "2023.1",
     "2022.3", "2022.2", "2022.1",
     "2021.3", "2021.2", "2021.1",
@@ -141,22 +142,19 @@ async def index(request: Request):
     <div class="card">
         <div class="card-title">支持版本</div>
         <div class="version-tags">
-            <span class="version-tag latest">2024.3 ← 最新</span>
+            <span class="version-tag latest">2026.1 ← 最新</span>
+            <span class="version-tag">2025.x</span>
+            <span class="version-tag">2024.3</span>
             <span class="version-tag">2024.2</span>
             <span class="version-tag">2024.1</span>
             <span class="version-tag">2023.3</span>
             <span class="version-tag">2023.2</span>
             <span class="version-tag">2023.1</span>
-            <span class="version-tag">2022.3</span>
-            <span class="version-tag">2022.2</span>
-            <span class="version-tag">2022.1</span>
-            <span class="version-tag">2021.3</span>
-            <span class="version-tag">2021.2</span>
-            <span class="version-tag">2021.1</span>
-            <span class="version-tag">2020.3</span>
-            <span class="version-tag">2020.2</span>
-            <span class="version-tag">2020.1</span>
-            <span class="version-tag">2019.x ~ 2018.1</span>
+            <span class="version-tag">2022.x</span>
+            <span class="version-tag">2021.x</span>
+            <span class="version-tag">2020.x</span>
+            <span class="version-tag">2019.x</span>
+            <span class="version-tag">2018.x</span>
         </div>
     </div>
 
@@ -201,7 +199,7 @@ async def activate_any(path: str, request: Request):
 
     return JSONResponse({
         "valid": True,
-        "jrebelVersion": "2024.3.0",
+        "jrebelVersion": "2026.1.0",
         "licenseType": "0",
         "maintenance": False,
         "timestamp": datetime.now(timezone.utc).isoformat(),
@@ -236,5 +234,5 @@ if __name__ == "__main__":
     import uvicorn
     port = int(os.getenv("PORT", "9000"))
     logger.info(f"Starting JRebel License Server on port {port}")
-    logger.info(f"Any GUID will activate successfully (supported: 2018.1 ~ 2024.3)")
+    logger.info(f"Any GUID will activate successfully (supported: 2018.1 ~ 2026.1)")
     uvicorn.run(app, host="0.0.0.0", port=port, log_level="info")

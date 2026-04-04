@@ -10,7 +10,7 @@ on:
 
 env:
   APP_IMAGE: registry.cn-hangzhou.aliyuncs.com/afrank/jrebel-license-serveer
-  GITHUB_IMAGE: ghcr.io/${{ github.repository }}
+  GITHUB_IMAGE: ghcr.io/${{ github.repository_owner }}/${{ github.event.repository.name }}
 
 jobs:
   build:

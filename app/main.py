@@ -17,6 +17,10 @@ logger = logging.getLogger(__name__)
 
 app = FastAPI(title="AFrank JRebel License Server", version="2.0.0")
 
+# 确保数据库目录存在
+db_dir = os.path.dirname(os.getenv("DB_PATH", "/app/data/activations.db"))
+os.makedirs(db_dir, exist_ok=True)
+
 # 初始化数据库
 init_db()
 

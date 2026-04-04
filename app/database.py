@@ -8,7 +8,7 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-DB_PATH = os.getenv("DB_PATH", "/app/activations.db")
+DB_PATH = os.getenv("DB_PATH", "/app/data/activations.db")
 
 
 def _get_conn():

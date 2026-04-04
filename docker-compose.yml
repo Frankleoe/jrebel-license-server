@@ -6,6 +6,7 @@ services:
     ports:
       - "9000:9000"
     environment:
-      # 激活地址前缀（修改为你的域名）
       - SERVER_PREFIX=https://jrebel.afrank.cn
+    volumes:
+      - ./data:/app/data
 

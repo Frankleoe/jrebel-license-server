@@ -10,21 +10,12 @@ from datetime import datetime, timezone
 from fastapi import FastAPI, Request, Response
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 
-from database import init_db, record_activation, get_recent_activations, get_stats
+from database import record_activation, get_recent_activations, get_stats
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger(__name__)
 
 app = FastAPI(title="AFrank JRebel License Server", version="2.0.0")
-
-# 确保数据库目录存在
-db_path = os.getenv("DB_PATH", "/app/data/activations.db")
-db_dir = os.path.dirname(db_path)
-if db_dir:
-    os.makedirs(db_dir, exist_ok=True)
-
-# 初始化数据库
-init_db()
 
 SUPPORTED_FROM = "2018.1"
 

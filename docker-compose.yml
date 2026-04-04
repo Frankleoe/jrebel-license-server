@@ -7,6 +7,6 @@ services:
       - "9000:9000"
     environment:
       - SERVER_PREFIX=https://jrebel.afrank.cn
-    volumes:
-      - ./data:/app/data
+      # MySQL 配置（Frank 填入真实值后取消注释）
+      # - MYSQL_URL=mysql+pymysql://用户名:密码@主机:3306/jrebel?charset=utf8mb4
 

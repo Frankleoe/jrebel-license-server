@@ -1,6 +1,6 @@
 services:
   jrebel-app:
-    image: ghcr.io/frankleoe/jrebel-license-server:latest
+    image: registry.cn-hangzhou.aliyuncs.com/afrank/jrebel-license-serveer:latest
     container_name: jrebel-license-server
     restart: unless-stopped
     command: python -m uvicorn main:app --host 0.0.0.0 --port 9000

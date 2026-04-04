@@ -20,34 +20,20 @@
 
 ## 🚀 快速部署
 
-### 方式一：直接使用 GitHub 镜像（推荐）
+### 方式一：阿里云 ACR（推荐，已部署）
 
 ```bash
-# 克隆项目
-git clone https://github.com/Frankleoe/jrebel-license-server.git
-cd jrebel-license-server
-
-# 启动服务（使用 GitHub Actions 构建的镜像）
 docker compose up -d
-
-# 查看日志
-docker compose logs -f
 ```
 
-### 方式二：Cloudflare（推荐，无需证书）
+镜像：`registry.cn-hangzhou.aliyuncs.com/afrank/jrebel-license-serveer:latest`
 
-将域名解析到服务器后，在 Cloudflare 控制台开启 **Full SSL** 或 **Flexible SSL** 即可，无需手动配置证书。
+### 方式二：本地构建
 
 ```bash
-# 克隆项目
 git clone https://github.com/Frankleoe/jrebel-license-server.git
 cd jrebel-license-server
-
-# 启动服务
-docker compose up -d --build
-
-# 查看日志
-docker compose logs -f
+docker compose -f docker-compose.dev.yml up -d --build
 ```
 
 ---

@@ -12,6 +12,7 @@ from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 
 from database import record_activation, get_recent_activations, get_stats
 from signer import signer, SERVER_RANDOMNESS
+from jetbrains_signer import jetbrains_signer
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger(__name__)
@@ -223,6 +224,58 @@ async def jrebel_leases(request: Request):
 @app.api_route("/agent/leases", methods=["GET", "POST"])
 async def agent_leases(request: Request):
     return await jrebel_leases(request)
+
+
+# ─── JetBrains IDE 激活 ──────────────────────────────────────
+
+@app.api_route("/api/licenses", methods=["POST"])
+async def jetbrains_activate(request: Request):
+    """JetBrains IDE 激活接口"""
+    content_type = request.headers.get("content-type", "")
+    if "application/json" in content_type:
+        try:
+            body = await request.json()
+        except Exception:
+            body = {}
+    elif "application/x-www-form-urlencoded" in content_type or "application/form-data" in content_type:
+        try:
+            body = await request.form()
+            body = {k: v for k, v in body.items()}
+        except Exception:
+            body = {}
+    else:
+        body = {}
+
+    params = dict(request.query_params)
+    params.update(body)
+
+    token = params.get("token", "")
+    username = params.get("userName", params.get("username", ""))
+
+    ip = request.client.host if request.client else "unknown"
+    logger.info(f"[JetBrains Activate] user={username} token={token[:20] if token else 'NONE'} from {ip}")
+
+    if not username:
+        return JSONResponse({"error": "Missing userName"}, status_code=400)
+
+    return JSONResponse({
+        "licenses": [
+            {
+                "licenseId": " jetbrains-way",
+                "licenseRestriction": "",
+                "customerName": username,
+                "assignedToName": username,
+                "productCode": "",
+                "paidUpTo": "2099-12-31",
+                "metadata": "",
+                "sale": "",
+                "date": "2018-04-11",
+                "silent": True,
+                "current": True,
+            }
+        ],
+        "signature": "",
+    })
 
 
 @app.api_route("/jrebel/leases/1", methods=["GET", "POST", "DELETE"])

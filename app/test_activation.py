@@ -168,6 +168,20 @@ def test_rpc_release_ticket():
     assert "ReleaseTicketResponse" in response.text
 
 
+def test_jetbrains_activate():
+    """测试 JetBrains IDE 激活接口"""
+    response = client.post(
+        "/api/licenses",
+        data={"userName": "jb@test.com", "token": "test_token_123"},
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert "licenses" in data
+    assert len(data["licenses"]) > 0
+    assert data["licenses"][0]["customerName"] == "jb@test.com"
+    assert data["licenses"][0]["current"] is True
+
+
 if __name__ == "__main__":
     import pytest
 

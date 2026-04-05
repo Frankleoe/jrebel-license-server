@@ -41,12 +41,20 @@ try:
         logger.info(f"MySQL connected: {_engine.url.host}")
     else:
         import sqlite3
-        _sqlite_path = os.getenv("DB_PATH", "/app/data/activations.db")
-        _db_dir = os.path.dirname(_sqlite_path)
+        _sqlite_path = os.getenv("DB_PATH", "")
+        _db_dir = os.path.dirname(_sqlite_path) if _sqlite_path else ""
         if _db_dir:
-            os.makedirs(_db_dir, exist_ok=True)
-        _engine = create_engine(f"sqlite:///{_sqlite_path}", connect_args={"check_same_thread": False})
-        logger.info(f"SQLite: {_sqlite_path}")
+            try:
+                os.makedirs(_db_dir, exist_ok=True)
+            except PermissionError:
+                _sqlite_path = ""
+                logger.warning(f"Cannot create {_db_dir}, using in-memory SQLite")
+        if _sqlite_path:
+            _engine = create_engine(f"sqlite:///{_sqlite_path}", connect_args={"check_same_thread": False})
+            logger.info(f"SQLite: {_sqlite_path}")
+        else:
+            _engine = create_engine("sqlite:///:memory:", connect_args={"check_same_thread": False})
+            logger.info("SQLite: in-memory")
 
     Base.metadata.create_all(_engine)
     _Session = sessionmaker(bind=_engine)

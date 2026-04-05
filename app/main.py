@@ -11,6 +11,7 @@ from fastapi import FastAPI, Request, Response
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 
 from database import record_activation, get_recent_activations, get_stats
+from signer import signer, SERVER_RANDOMNESS
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger(__name__)
@@ -27,15 +28,22 @@ def _get_base_url(request: Request) -> str:
     return str(request.base_url).rstrip("/")
 
 
-def _jrebel_response(username: str = "", offline: bool = False):
+def _jrebel_response(username: str = "", offline: bool = False,
+                       client_randomness: str = "", guid: str = ""):
     """统一的 JRebel 激活响应格式"""
+    valid_from = None
+    valid_until = None
     if offline:
         now_ms = int(datetime.now(timezone.utc).timestamp() * 1000)
         valid_from = now_ms
         valid_until = now_ms + 180 * 24 * 60 * 60 * 1000
-    else:
-        valid_from = None
-        valid_until = None
+
+    signature = signer.create_lease_signature(
+        client_randomness, guid, offline,
+        str(valid_from) if valid_from else "null",
+        str(valid_until) if valid_until else "null"
+    )
+
     return {
         "serverVersion": "2024.3.0",
         "serverProtocolVersion": "1.1",
@@ -44,8 +52,8 @@ def _jrebel_response(username: str = "", offline: bool = False):
         "id": 1,
         "licenseType": 1,
         "evaluationLicense": False,
-        "signature": "skip-activation",
-        "serverRandomness": "a1b2c3d4e5f6",
+        "signature": signature,
+        "serverRandomness": SERVER_RANDOMNESS,
         "seatPoolType": "standalone",
         "statusCode": "SUCCESS",
         "offline": offline,
@@ -196,15 +204,20 @@ async def jrebel_leases(request: Request):
     params = dict(request.query_params)
     params.update(body)
 
+    client_randomness = params.get("randomness", "")
     guid = params.get("guid", "")
     username = params.get("username", params.get("userName", ""))
     offline = str(params.get("offline", "false")).lower() == "true"
+
+    if not client_randomness or not username or not guid:
+        logger.warning(f"[JRebel Leases] Missing params - randomness={client_randomness[:10] if client_randomness else 'MISSING'} guid={guid[:20] if guid else 'MISSING'} user={username}")
+        return JSONResponse({"statusCode": "FAILED", "message": "Missing required parameters"}, status_code=403)
 
     ip = request.client.host if request.client else "unknown"
     logger.info(f"[JRebel Leases] guid={guid[:20]} user={username} offline={offline} from {ip}")
     record_activation(username, guid, ip, "jrebel")
 
-    return JSONResponse(_jrebel_response(username, offline))
+    return JSONResponse(_jrebel_response(username, offline, client_randomness, guid))
 
 
 @app.api_route("/agent/leases", methods=["GET", "POST"])

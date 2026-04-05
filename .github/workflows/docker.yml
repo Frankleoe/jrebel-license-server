@@ -25,12 +25,12 @@ jobs:
       - name: Install dependencies
         run: |
           cd app
-          pip install -r requirements.txt -q
+          pip install -r requirements.txt
 
       - name: Run tests
         run: |
           cd app
-          python -m pytest test_activation.py test_guid.py -v --tb=short
+          python -m pytest test_activation.py test_guid.py -v --tb=long
 
   build:
     runs-on: ubuntu-latest

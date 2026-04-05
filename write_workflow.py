@@ -1,4 +1,5 @@
-name: docker
+path = r'C:\Users\frank\.openclaw\workspace\jrebel-license-server\.github\workflows\docker.yml'
+new_content = """name: docker
 
 on:
   push:
@@ -40,3 +41,7 @@ jobs:
           tags: ${{ env.APP_IMAGE }}:${{ github.sha }}
           labels: ${{ steps.meta.outputs.labels }}
           platforms: linux/amd64
+"""
+with open(path, 'w', encoding='utf-8') as f:
+    f.write(new_content)
+print('Written', len(new_content), 'chars')

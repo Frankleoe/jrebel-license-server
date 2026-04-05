@@ -350,6 +350,26 @@ async def admin_page():
     return HTMLResponse(html)
 
 
+# ─── 信息接口 ────────────────────────────────────────────────
+
+@app.get("/info")
+async def info(request: Request):
+    base = _get_base_url(request)
+    return JSONResponse({
+        "server": base,
+        "version": "2.0.0",
+        "status": "running",
+        "mode": "skip-activation",
+        "supportedFrom": SUPPORTED_FROM,
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+    })
+
+
+@app.get("/health")
+async def health():
+    return {"status": "ok"}
+
+
 # ─── 通用 catch-all ─────────────────────────────────────────
 
 @app.api_route("/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"])
@@ -383,27 +403,6 @@ async def catch_all(path: str, request: Request):
         return HTMLResponse(html)
 
     return JSONResponse(_jrebel_response())
-
-
-# ─── 管理页面 ────────────────────────────────────────────────
-# ─── 信息接口 ────────────────────────────────────────────────
-
-@app.get("/info")
-async def info(request: Request):
-    base = _get_base_url(request)
-    return JSONResponse({
-        "server": base,
-        "version": "2.0.0",
-        "status": "running",
-        "mode": "skip-activation",
-        "supportedFrom": SUPPORTED_FROM,
-        "timestamp": datetime.now(timezone.utc).isoformat(),
-    })
-
-
-@app.get("/health")
-async def health():
-    return {"status": "ok"}
 
 
 if __name__ == "__main__":

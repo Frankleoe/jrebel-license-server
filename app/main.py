@@ -45,7 +45,7 @@ def _jrebel_response(username: str = "", offline: bool = False,
     )
 
     return {
-        "serverVersion": "2024.3.0",
+        "serverVersion": "3.2.4",
         "serverProtocolVersion": "1.1",
         "serverGuid": "a1b4aea8-b031-4302-b602-670a990272cb",
         "groupType": "managed",
@@ -65,7 +65,7 @@ def _jrebel_response(username: str = "", offline: bool = False,
         "orderId": "",
         "zeroIds": [],
         "licenseValidFrom": 1490544001000,
-        "licenseValidUntil": 1893455999000,
+        "licenseValidUntil": 1691839999000,
     }
 
 
@@ -230,7 +230,7 @@ async def jrebel_release(request: Request):
     params = dict(request.query_params)
     username = params.get("username", params.get("userName", "Administrator"))
     return JSONResponse({
-        "serverVersion": "2024.3.0",
+        "serverVersion": "3.2.4",
         "serverProtocolVersion": "1.1",
         "serverGuid": "a1b4aea8-b031-4302-b602-670a990272cb",
         "groupType": "managed",
@@ -249,7 +249,7 @@ async def agent_release(request: Request):
 @app.api_route("/jrebel/validate-connection", methods=["GET", "POST"])
 async def jrebel_validate(request: Request):
     return JSONResponse({
-        "serverVersion": "2024.3.0",
+        "serverVersion": "3.2.4",
         "serverProtocolVersion": "1.1",
         "serverGuid": "a1b4aea8-b031-4302-b602-670a990272cb",
         "groupType": "managed",

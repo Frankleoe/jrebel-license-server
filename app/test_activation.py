@@ -114,7 +114,7 @@ def test_validate_connection():
     assert response.status_code == 200
     data = response.json()
     assert data["statusCode"] == "SUCCESS"
-    assert data["serverVersion"] == "2024.3.0"
+    assert data["serverVersion"] == "3.2.4"
 
 
 def test_info_endpoint():

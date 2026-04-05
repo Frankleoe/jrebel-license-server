@@ -32,7 +32,7 @@ jobs:
             type=semver,pattern={{version}}
             type=sha,prefix=
             type=raw,value=latest
-      - name: Build and push to Alibaba Cloud ACR
+      - name: Build and push to ACR
         uses: docker/build-push-action@v6
         with:
           context: ./app

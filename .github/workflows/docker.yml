@@ -30,7 +30,7 @@ jobs:
       - name: Run tests
         run: |
           cd app
-          python -m pytest test_activation.py test_guid.py -v --tb=long
+          DB_PATH=/tmp/jrebel_test.db python -m pytest test_activation.py test_guid.py -v --tb=long
 
   build:
     runs-on: ubuntu-latest

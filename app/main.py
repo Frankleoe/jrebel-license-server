@@ -320,7 +320,8 @@ async def ping(request: Request):
     params = dict(request.query_params)
     salt = params.get("salt", "")
     xml = f"<PingResponse><message></message><responseCode>OK</responseCode><salt>{salt}</salt></PingResponse>"
-    return Response(content=xml, media_type="text/html; charset=utf-8",
+    sig = jetbrains_signer.sign(xml)
+    return Response(content=f"<!-- {sig} -->\n{xml}", media_type="text/html; charset=utf-8",
                    headers={"Access-Control-Allow-Origin": "*"})
 
 
@@ -337,7 +338,8 @@ async def obtain_ticket(request: Request):
         f"<ticketProperties>licensee={username}\tlicenseType=0\t</ticketProperties>"
         f"</ObtainTicketResponse>"
     )
-    return Response(content=xml, media_type="text/html; charset=utf-8",
+    sig = jetbrains_signer.sign(xml)
+    return Response(content=f"<!-- {sig} -->\n{xml}", media_type="text/html; charset=utf-8",
                    headers={"Access-Control-Allow-Origin": "*"})
 
 
@@ -346,7 +348,8 @@ async def release_ticket(request: Request):
     params = dict(request.query_params)
     salt = params.get("salt", "")
     xml = f"<ReleaseTicketResponse><message></message><responseCode>OK</responseCode><salt>{salt}</salt></ReleaseTicketResponse>"
-    return Response(content=xml, media_type="text/html; charset=utf-8",
+    sig = jetbrains_signer.sign(xml)
+    return Response(content=f"<!-- {sig} -->\n{xml}", media_type="text/html; charset=utf-8",
                    headers={"Access-Control-Allow-Origin": "*"})
 
 
